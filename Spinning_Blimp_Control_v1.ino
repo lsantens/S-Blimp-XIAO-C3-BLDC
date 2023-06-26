@@ -31,8 +31,8 @@ float roll, pitch, yaw;
 float rollrate, pitchrate, yawrate;
 float estimatedZ, velocityZ, groundZ;
 float abz = 0.0;
-float kpz = 0.01*20.0; // N/meter
-float kdz = 0.2;
+float kpz = 0.01*1.0; // N/meter
+float kdz = 0.2*5.0;
 float kpx = 0.4;
 float kdx = 0.2;
 float kptz = 0.3;
@@ -140,6 +140,10 @@ void loop() {
     int m2us = (minUs + (maxUs - minUs)*m2*3.33);
 
     // Write motor thrust values to the pins
+    m1us = clamp(m1us, 1125, 1850);
+    m2us = clamp(m2us, 1125, 1850);
+    // m1us = clamp(m1us, 1125, 1550);
+    // m2us = clamp(m2us, 1125, 1550);
     thrust1.write((int) m1us);
     thrust2.write((int) m2us);
 
@@ -239,12 +243,12 @@ void controlOutputs(float ifx, float ify, float ifz, float itx, float ity, float
   // // sinr = (float) sin(self->roll);
 
 
-  float term1 = kpz*radians(ifx)*cos(radians(yaw));
-  float term2 = kpz*radians(ify)*cos(radians(yaw));
+  // float term1 = radians(ifx)*cos(radians(yaw));
+  // float term2 = radians(ify)*cos(radians(yaw));
   // float term1 = 2.0*radians(ifx)*cos(radians(itz));
   // float term2 = 2.0*radians(ify)*cos(radians(itz));
   
-  Serial.println(yaw);
+  // Serial.println(yaw);
   // Convert joystick input to theta and magnitude for cyclic input
   float joytheta = tan(ifx/ify);
   float joymag   = pow(radians(ifx),2) + pow(radians(ify),2);
@@ -258,10 +262,12 @@ void controlOutputs(float ifx, float ify, float ifz, float itx, float ity, float
   // TODO: bring back x-y feedback
   // float f1 = ifz; // + ifx + ify; // LHS motor
   // float f2 = ifz; // - ifx - ify; // RHS motor
-  float f1 = ifz + lhs + rhs; // LHS motor
-  float f2 = ifz - lhs - rhs; // RHS motor
-  m1 = clamp(f1, 0, 0.25);
-  m2 = clamp(f2, 0, 0.25);
+  float f1 = ifz + 3.0*(lhs + rhs); // LHS motor
+  float f2 = ifz - 3.0*(lhs + rhs); // RHS motor
+  // m1 = clamp(f1, 0, 0.25);
+  // m2 = clamp(f2, 0, 0.25);
+  m1 = clamp(f1, 0, 0.13);
+  m2 = clamp(f2, 0, 0.13);
 
 }
 
