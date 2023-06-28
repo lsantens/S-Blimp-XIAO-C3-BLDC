@@ -5,7 +5,8 @@ import struct
 import math
 
 # udp params
-UDP_IP = "192.168.0.48"
+#UDP_IP = "192.168.0.48"
+UDP_IP = "192.168.0.81"
 UDP_PORT = 1234
 print("UDP target IP: %s" % UDP_IP)
 print("UDP target port: %s" % UDP_PORT)
@@ -41,11 +42,17 @@ if __name__ == "__main__":
     absz = 0
     b_old = 0
     b_state = 1
+    a_old = 0
+    a_state = 1
     while True:
         time_start = time.time()
         # Get the joystick readings
         pygame.event.pump()
         b = joystick.get_button(1)
+        a = joystick.get_button(0)
+        if a == 1 and a_old == 0:
+            a_state = not a_state
+        a_old = a
         if b == 1 and b_old == 0:
             b_state = not b_state
         b_old = b
@@ -53,18 +60,18 @@ if __name__ == "__main__":
         fx = -joystick.get_axis(1) # left handler: up-down, inverted
         fy = joystick.get_axis(0) # left handler: left-right
         fz = -joystick.get_axis(4)  # right handler: up-down, inverted
-        tauz = joystick.get_axis(3) # right handler: left-right
+        tauz = 0
         taux = 0
-        tauy = 0
+        tauy = joystick.get_axis(3) # right handler: left-right
         #absz = .5
         if abs(joystick.get_axis(4)) > .1:
             absz += -0.02*joystick.get_axis(4)
         if absz < 0 or b_state == 0:
             absz = 0
 
-        print(round(fx,2), round(fy,2), round(fz,2), round(taux,2), round(tauy,2), round(tauz,2), round(absz,2), round(b_state, 2))
-        message = struct.pack('<ffffffff', fx, fy , fz, taux, tauy, tauz, absz, b_state) 
+        print(round(fx,2), round(fy,2), round(fz/8,2), round(a_state,2), round(tauy,2), round(tauz,2), round(absz,2), round(b_state, 2))
+        message = struct.pack('<ffffffff', fx, fy , fz/8, a_state, tauy, tauz, absz, b_state) 
         udp_send(sock, UDP_IP, UDP_PORT, message)
         #print(message)
-        while(time.time() - time_start < 0.):
+        while(time.time() - time_start < 0.02):
             time.sleep(0.02)
