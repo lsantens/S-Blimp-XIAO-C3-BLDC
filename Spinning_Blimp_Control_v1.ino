@@ -7,8 +7,8 @@
 #define THRUST2 D1
 
 // min and max high signal of thruster PWMs
-int minUs = 1000;
-int maxUs = 2000;
+int minUs = 1100;
+int maxUs = 1900;
 
 // Wi-Fi access details
 const char * ssid = "AIRLab-BigLab";
@@ -31,9 +31,10 @@ float roll, pitch, yaw;
 float rollrate, pitchrate, yawrate;
 float estimatedZ, velocityZ, groundZ;
 float abz = 0.0;
-float kpz = 0.01*1.0; // N/meter
-float kdz = 0.2*5.0;
-float kpx = 0.4;
+float kpz = 0.01*7.0; // N/meter
+float kiz = 0.025;
+float kdz = 0.2*2.0;
+float kpx = 0.035;
 float kdx = 0.2;
 float kptz = 0.3;
 float kdtz = -0.025;
@@ -42,6 +43,9 @@ float kdtx = 0.01;
 float lx = 0.25;
 float m1 = 0.0;
 float m2 = 0.0;
+float heading = 0.0;
+float massthrust = 0.04;
+long dt, last_time, time_nw;
 
 void setup() {
   Serial.begin(9600); 
@@ -107,14 +111,15 @@ void setup() {
       // packet.printf("Got %u bytes of data", packet.length());
     });
   }
-    //gyro, acc, mag, euler, z
 
+  // Yaw heading setup
+  heading = sensorSuite.getYaw(); 
 }
 
 void loop() {
     //gyro, acc, mag, euler, z
   float cfx, cfy, cfz, ctx, cty, ctz;
-  
+
   // Runs the sensor fusion loop
   sensorSuite.sensfusionLoop(false, 5);
 
@@ -139,9 +144,11 @@ void loop() {
     int m1us = (minUs + (maxUs - minUs)*m1*3.33);
     int m2us = (minUs + (maxUs - minUs)*m2*3.33);
 
+
+
     // Write motor thrust values to the pins
-    m1us = clamp(m1us, 1125, 1850);
-    m2us = clamp(m2us, 1125, 1850);
+    m1us = clamp(m1us, 1200, 1800);
+    m2us = clamp(m2us, 1200, 1800);
     // m1us = clamp(m1us, 1125, 1550);
     // m2us = clamp(m2us, 1125, 1550);
     thrust1.write((int) m1us);
@@ -225,9 +232,23 @@ void getControllerInputs(float *fx, float *fy, float *fz, float *tx, float *ty, 
   }
 }
 void addFeedback(float *fx, float *fy, float *fz, float *tx, float *ty, float *tz, float abz){
-    *fz = (*fz  - (estimatedZ-groundZ))*kpz - (velocityZ)*kdz + abz;//*fz = *fz + abz;//
+    // *fz = 0;
+    float err = estimatedZ-groundZ;
+    delta_time();
+    float int_err =+ dt * err;
+    *fz = (*fz  - (estimatedZ-groundZ))*kpz - (int_err * kiz) - (velocityZ)*kdz + abz;//*fz = *fz + abz;//
+    // *fz = (*fz  - (estimatedZ-groundZ))*kpz - (velocityZ)*kdz + abz;//*fz = *fz + abz;//
 
+  Serial.println(int_err*kiz);
 }
+
+long delta_time(){
+  time_nw = millis();
+  dt = (time_nw - last_time);
+  last_time = time_nw;
+  return dt;
+}
+
 float clamp(float in, float min, float max){
   if (in< min){
     return min;
@@ -239,35 +260,38 @@ float clamp(float in, float min, float max){
 }
 
 void controlOutputs(float ifx, float ify, float ifz, float itx, float ity, float itz) {
-  //float desiredPitch = wty - self->pitch*(float)g_self.kR_xy - self->pitchrate *(float)g_self.kw_xy;
-  // // sinr = (float) sin(self->roll);
 
-
-  // float term1 = radians(ifx)*cos(radians(yaw));
-  // float term2 = radians(ify)*cos(radians(yaw));
-  // float term1 = 2.0*radians(ifx)*cos(radians(itz));
-  // float term2 = 2.0*radians(ify)*cos(radians(itz));
+  // Heading added to the control loop
+  heading = heading + radians(ity * 180);
   
   // Serial.println(yaw);
+
   // Convert joystick input to theta and magnitude for cyclic input
-  float joytheta = tan(ifx/ify);
-  float joymag   = pow(radians(ifx),2) + pow(radians(ify),2);
-  float coscos   = cos(joytheta)*cos(radians(yaw));
-  float sincos   = sin(joytheta)*cos(radians(yaw));
+  float joytheta = atan2(ify,-ifx) + PI;  
+  float joymag  = sqrt(pow(ifx,2) + pow(ify,2));
 
   // Cyclic pitch input
-  float lhs = joymag*(coscos  - sincos);
-  float rhs = joymag*(-sincos - coscos);
+  // float lhs = joymag*(coscos  - sincos);
+  // float rhs = joymag*(-sincos - coscos);
+  float pitch = joymag * sin(joytheta) * cos(yaw);
+  float roll =  joymag * cos(joytheta) * sin(yaw);
+  // float pitch = joymag * sin(joytheta) * cos(yaw + heading);
+  // float roll =  joymag * cos(joytheta) * sin(yaw + heading);
 
   // TODO: bring back x-y feedback
-  // float f1 = ifz; // + ifx + ify; // LHS motor
-  // float f2 = ifz; // - ifx - ify; // RHS motor
-  float f1 = ifz + 3.0*(lhs + rhs); // LHS motor
-  float f2 = ifz - 3.0*(lhs + rhs); // RHS motor
+  // Mass Thrust it a proportional debug gain
+  float mt = massthrust;
+
+  float f1 = ifz - (mt * (pitch + roll)); // LHS motor
+  float f2 = ifz + (mt * (pitch + roll)); // RHS motor
+
+
+  // Clamp to ensure motor doesn't stop spinning at minimum
+  // and motor doesn't draw too much current
   // m1 = clamp(f1, 0, 0.25);
   // m2 = clamp(f2, 0, 0.25);
-  m1 = clamp(f1, 0, 0.13);
-  m2 = clamp(f2, 0, 0.13);
+  m1 = clamp(f1, 0.03, 0.18);
+  m2 = clamp(f2, 0.03, 0.18);
 
 }
 
