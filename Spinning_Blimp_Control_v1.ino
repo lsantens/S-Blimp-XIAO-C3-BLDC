@@ -31,9 +31,9 @@ float roll, pitch, yaw;
 float rollrate, pitchrate, yawrate;
 float estimatedZ, velocityZ, groundZ;
 float abz = 0.0;
-float kpz = 0.01*7.0; // N/meter
-float kiz = 0.025;
-float kdz = 0.2*2.0;
+float kpz = 0.01*3.0; // N/meter
+float kiz = 0.02;
+float kdz = 0.2*0.7;
 float kpx = 0.035;
 float kdx = 0.2;
 float kptz = 0.3;
@@ -44,7 +44,7 @@ float lx = 0.25;
 float m1 = 0.0;
 float m2 = 0.0;
 float heading = 0.0;
-float massthrust = 0.04;
+float massthrust = 0.15;
 long dt, last_time, time_nw;
 
 void setup() {
@@ -141,8 +141,8 @@ void loop() {
     controlOutputs(cfx, cfy, cfz, ctx, cty, ctz);
 
     // Convert motor input to 1000-2000 Us values
-    int m1us = (minUs + (maxUs - minUs)*m1*3.33);
-    int m2us = (minUs + (maxUs - minUs)*m2*3.33);
+    int m1us = (minUs + (maxUs - minUs)*m1*3.33*(0.5));
+    int m2us = (minUs + (maxUs - minUs)*m2*3.33*(0.5));
 
 
 
@@ -236,8 +236,8 @@ void addFeedback(float *fx, float *fy, float *fz, float *tx, float *ty, float *t
     float err = estimatedZ-groundZ;
     delta_time();
     float int_err =+ dt * err;
-    *fz = (*fz  - (estimatedZ-groundZ))*kpz - (int_err * kiz) - (velocityZ)*kdz + abz;//*fz = *fz + abz;//
-    // *fz = (*fz  - (estimatedZ-groundZ))*kpz - (velocityZ)*kdz + abz;//*fz = *fz + abz;//
+    // *fz = (*fz  - (estimatedZ-groundZ))*kpz - (int_err * kiz) - (velocityZ)*kdz + abz;//*fz = *fz + abz;//
+    *fz = (*fz  - (estimatedZ-groundZ))*kpz - (velocityZ)*kdz + abz;//*fz = *fz + abz;//
 
   Serial.println(int_err*kiz);
 }
@@ -290,8 +290,8 @@ void controlOutputs(float ifx, float ify, float ifz, float itx, float ity, float
   // and motor doesn't draw too much current
   // m1 = clamp(f1, 0, 0.25);
   // m2 = clamp(f2, 0, 0.25);
-  m1 = clamp(f1, 0.03, 0.18);
-  m2 = clamp(f2, 0.03, 0.18);
+  m1 = clamp(f1, 0.01, 0.15);
+  m2 = clamp(f2, 0.01, 0.15);
 
 }
 
