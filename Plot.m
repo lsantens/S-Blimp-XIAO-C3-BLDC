@@ -17,6 +17,7 @@ z = data.z;
 % Create a 3D line plot
 figure;
 plot3(x, y, z, 'b-', 'LineWidth', 2);
+hold off
 grid on;
 xlabel('X');
 ylabel('Y');
@@ -25,3 +26,5 @@ title('3D Line Plot');
 xlim([-5, 7]);
 ylim([-4, 4]);
 zlim([0, 3]);
+hold on
+plot3(-1, 0, 1.6, 'ro', 'MarkerSize', 4, 'MarkerFaceColor', 'r');
