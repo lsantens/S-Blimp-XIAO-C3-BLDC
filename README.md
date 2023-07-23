@@ -2,4 +2,4 @@
 S-Blimp XIAO-C3 BLDC
 
 
-![Plot](/least-github-pages/assets/Plot1.jpg)
+![Plot](/lsantens/S-Blimp-XIAO-C3-BLDC/assets/Plot1.jpg)
